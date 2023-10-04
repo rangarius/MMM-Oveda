@@ -9,6 +9,48 @@
  */
 
 
+class Event {
+	
+	id = "";
+	name = "";
+	place = {
+		name: "",
+		street: "",
+		city: "",
+		postalCode: ""
+	};
+	description = "";
+	dates = [];
+	categories = [];
+	photo = null;
+
+	constructor(event_data) {
+		this.id = event_data.id;
+		this.name = event_data.name;
+		this.description = event_data.description;
+		this.photo = event_data.photo ? event_data.photo : "images/event.png";
+		
+		event_data.categories.map((el) => {
+			this.categories.push(el.name)
+		})
+		event_data.date_definitions.map((el) => {
+			this.categories.push({
+				start: el.start,
+				end: el.end,
+				allday: el.allday
+			})
+		})
+		this.place = {
+			name: event_data.name,
+			street: event_data.street,
+			city: event_data.city,
+			postalCode: event_data.postalCode
+		}
+	}
+
+
+}
+
 //UserPresence Management (PIR sensor)
 //var UserPresence = true; //true by default, so no impact for user without a PIR sensor
 var cycleTimer;
@@ -60,15 +102,19 @@ Module.register("MMM-Oveda", {
 			this.GestionUpdateIntervalToDoIst();
 		}
 	},
-
+	createElements(payload) {
+		payload.items.map(el => {
+			this.events.push(new Event(el))
+		})
+	},
 	// Override socket notification handler.
-	// ******** Data sent from the Backend helper. This is the data from the Todoist API ************
+	// ******** Data sent from the Backend helper. This is the data from the Oveda API ************
 	socketNotificationReceived: function (notification, payload) {
 		var self = this;
 		if (notification === "EVENTS") {
 			this.createEvents(payload);
 
-				var cycleTime = Math.floor(50 / this.events.length) * 2000
+				var cycleTime = Math.floor(this.config.maximumEntries / this.events.length ) * 2000
 				if(cycleTimer) {
 					cycleTimer = null;
 				}
@@ -77,8 +123,9 @@ Module.register("MMM-Oveda", {
 						index = 0;
 					}
 					drawElements(this.events[index])
+					index += maximumEntries;
 				}, cycleTime)
-				
+
 			this.loaded = true;
 			this.updateDom(1000);
 
@@ -88,10 +135,23 @@ Module.register("MMM-Oveda", {
 	},
 
 	drawElements(elements) {
-		var header = document.getElementById("event_list_header");
+		var header = document.querySelector("#event_list_header");
 		header.innerHTML = "";
 
-		var title = 
+		
+		var title = document.createElement("h1");
+		title.innerHTML = moment().format("dddd") + " - " + moment().add(days_until, "days")
+		header.append(title)
+
+		var divider = document.createElement("hr")
+		header.append(divider)
+		
+		var event_body = document.querySelector("#event_list_body")
+
+		for(const event of elements) {
+
+		}
+
 	},
 
 	getDom: function () {
@@ -102,25 +162,29 @@ Module.register("MMM-Oveda", {
 		// }
 	
 		//Add a new div to be able to display the update time alone after all the task
-		var wrapper = document.createElement("div");
-
-		//display "loading..." if not loaded
-		if (!this.loaded) {
-			wrapper.innerHTML = "Loading...";
-			wrapper.className = "dimmed light small";
-			return wrapper;
-		}
-
 		var event_container = document.createElement("div");
 		event_container.id = "event_container";
 
+		//display "loading..." if not loaded
+		if (!this.loaded) {
+			event_container.innerHTML = "Loading...";
+			event_container.className = "dimmed light small";
+			return wrapper;
+		}
+
+
+
 		var event_list_header = document.createElement("div");
 		event_list_header.id="event_list_header";
+		event_container.append(event_list_header)
 
 		var event_list_body = document.createElement("div");
 		event_list_body.id = "event_list_body";
+		event_container.append(event_list_body);
+
+		var p
 		
-		return wrapper;
+		return event_container;
 	}
 
 });

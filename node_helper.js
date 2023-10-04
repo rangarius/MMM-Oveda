@@ -30,7 +30,7 @@ module.exports = NodeHelper.create({
         var url = this.handleUrl(config)
 
         request({
-			url: self + "/events/search",
+			url: config.urlBase + url,
 			method: "GET",
 			headers: {
 				"cache-control": "no-cache",
@@ -70,12 +70,23 @@ module.exports = NodeHelper.create({
         var startDate = moment().format("YYYY-MM-DD");
         url += "start_date="+startDate;
 
+		
         var endDate = moment().add(config.days_until, "days").format("YYYY-MM-DD")
 
-        for(var category_id in config.category_ids) {
-            url += "&category_id="+category_id
-        }
+		if(config.category_ids) {
+			url += "&category_id="
+			for(var category_id in config.category_ids) {
+				url += category_id + "%2C"
+			}
+		}
 
+
+		if(config.search_coordinate && config.seach_distance) {
+			url += "&coordinate=" + config.search_coordinate.lat + "%2C"+ config.search_coordinate.lng
+			url += "&distance=" + config.search_distance
+		}
+
+		return url;
 
     }
 
