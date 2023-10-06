@@ -29,7 +29,7 @@ class Event {
 		this.name = event_data.name;
 		this.description = event_data.description;
 		this.photo = event_data.photo ? event_data.photo : "images/event.png";
-		
+
 		event_data.categories.map((el) => {
 			this.categories.push(el.name)
 		})
@@ -147,9 +147,15 @@ Module.register("MMM-Oveda", {
 		header.append(divider)
 		
 		var event_body = document.querySelector("#event_list_body")
-
+		event_body.classList.add("d-flex")
+		
 		for(const event of elements) {
+			var el_wrapper = document.createElement("div");
 
+			var img_div = document.createElement("div");
+			
+			var img = document.createElement("img");
+			
 		}
 
 	},
