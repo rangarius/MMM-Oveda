@@ -9,7 +9,9 @@
 
 //HELPER IMPORT
 //const NodeHelper = require("node_helper");
-const moment = require("momentjs")
+var NodeHelper = require('node_helper')
+const moment = require("moment")
+const request = require("request");
 
 module.exports = NodeHelper.create({
 	start: function() {
@@ -20,17 +22,17 @@ module.exports = NodeHelper.create({
 		if (notification === "FETCH_OVEDA") {
             //Setup helper variables
 			this.config = payload;            
-            this.handleRequest(config)
+            this.handleRequest()
 		}
 	},
 
-    handleRequest(config) {
+    handleRequest() {
         var self = this
 
-        var url = this.handleUrl(config)
+        var url = this.handleUrl()
 
         request({
-			url: config.urlBase + url,
+			url: url,
 			method: "GET",
 			headers: {
 				"cache-control": "no-cache",
@@ -46,12 +48,12 @@ module.exports = NodeHelper.create({
 				return console.error(" ERROR - MMM-Oveda: " + error);
 			}
 			if(self.config.debug){
-				console.log(body);
+				// console.log(body);
 			}
 			if (response.statusCode === 200) {
 				var eventsJson = JSON.parse(body);
 
-				self.sendSocketNotification("EVENTS", eventJson);
+				self.sendSocketNotification("EVENTS", eventsJson);
 			}
 			else{
 				console.log("Oveda API equest status="+response.statusCode);
@@ -60,18 +62,19 @@ module.exports = NodeHelper.create({
 		});
     },
 
-    handleUrl(config) {
+    handleUrl() {
         var self = this;
 
-        var url = config.url;
+        var url = self.config.urlBase + self.config.apiPath;
 
         //add StartDate to
-        url += "events/search?";
+        url += "/events/search?";
         var startDate = moment().format("YYYY-MM-DD");
-        url += "start_date="+startDate;
+        url += "date_from="+startDate;
 
 		
         var endDate = moment().add(config.days_until, "days").format("YYYY-MM-DD")
+		url += "&date_to=" + endDate;
 
 		if(config.category_ids) {
 			url += "&category_id="
@@ -81,11 +84,14 @@ module.exports = NodeHelper.create({
 		}
 
 
-		if(config.search_coordinate && config.seach_distance) {
-			url += "&coordinate=" + config.search_coordinate.lat + "%2C"+ config.search_coordinate.lng
-			url += "&distance=" + config.search_distance
+		if(self.config.search_coordinate && self.config.seach_distance) {
+			url += "&coordinate=" + self.config.search_coordinate.lat + "%2C"+ self.config.search_coordinate.lng
+			url += "&distance=" + self.config.search_distance
 		}
 
+		if(self.config.debug) {
+			console.log("Oveda request string: ", url)
+		}
 		return url;
 
     }

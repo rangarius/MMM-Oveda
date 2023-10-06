@@ -24,20 +24,21 @@ class Event {
 	categories = [];
 	photo = null;
 
-	constructor(event_data) {
+	constructor(event_data, base_url) {
 		this.id = event_data.id;
 		this.name = event_data.name;
 		this.description = event_data.description;
-		this.photo = event_data.photo ? event_data.photo : "images/event.png";
+		this.photo = event_data.photo ? base_url + event_data.photo.image_url : "images/event.png";
 
 		event_data.categories.map((el) => {
 			this.categories.push(el.name)
 		})
 		event_data.date_definitions.map((el) => {
-			this.categories.push({
+			this.dates.push({
 				start: el.start,
 				end: el.end,
-				allday: el.allday
+				allday: el.allday,
+				rrulle: el.reccurrency_rule
 			})
 		})
 		this.place = {
@@ -59,13 +60,15 @@ var cycleTimer;
 Module.register("MMM-Oveda", {
 
 	defaults: {
-		maximumEntries: 10,
-		urlBase: "https://oveda.de/api/v1/",
+		maximumEntries: 5,
+		urlBase: "https://oveda.de",
+		apiPath: "/api/v1",
 		refreshRate: 5 * 60 * 1000,
 		cycleCategories: true,
 		category_ids: [],
 		debug: false,
-		days_until: 3
+		days_until: 3,
+		width: "600px"
 	},
 
 	// Define required scripts.
@@ -78,11 +81,16 @@ Module.register("MMM-Oveda", {
 			de: "translations/de.json",
 		};
 	},
+	getScripts: function() {
+		return [
+			'moment.js', // this file is available in the vendor folder, so it doesn't need to be available in the module folder.
+		]
+	},
 
 	start: function () {
 		var self = this;
 		Log.info("Starting module: " + this.name);
-
+		this.events = []
 		
 		self.sendSocketNotification("FETCH_OVEDA", self.config);
 	},
@@ -102,9 +110,9 @@ Module.register("MMM-Oveda", {
 			this.GestionUpdateIntervalToDoIst();
 		}
 	},
-	createElements(payload) {
+	createEvents(payload) {
 		payload.items.map(el => {
-			this.events.push(new Event(el))
+			this.events.push(new Event(el, this.config.urlBase))
 		})
 	},
 	// Override socket notification handler.
@@ -112,18 +120,28 @@ Module.register("MMM-Oveda", {
 	socketNotificationReceived: function (notification, payload) {
 		var self = this;
 		if (notification === "EVENTS") {
+			if(self.config.debug) {
+				Log.info("Oveda recived infos: ", payload)
+			}
 			this.createEvents(payload);
-
-				var cycleTime = Math.floor(this.config.maximumEntries / this.events.length ) * 2000
-				if(cycleTimer) {
+			var index = 0;
+				var cycleTime = Math.floor(self.config.maximumEntries / self.events.length  * 10000 )
+				cycleTime = cycleTime < 2000 ? 2000 : cycleTime
+				if(this.cycleTimer) {
 					cycleTimer = null;
 				}
-				cycleTimer = setInterval( function() {
-					if(index > this.events.length) {
+				this.cycleTimer = setInterval( function() {
+					console.log("Oveda index is: ", index)
+					console.log("Oveda max entries is: ", self.config.maximumEntries)
+					console.log("Oveda events length is: ", self.events.length)
+
+					self.drawElements(index)
+
+					index = index + self.config.maximumEntries;
+					if(index >= self.events.length) {
 						index = 0;
 					}
-					drawElements(this.events[index])
-					index += maximumEntries;
+					console.log("Oveda index is: ", index)
 				}, cycleTime)
 
 			this.loaded = true;
@@ -134,28 +152,84 @@ Module.register("MMM-Oveda", {
 		}
 	},
 
-	drawElements(elements) {
+	drawElements(index) {
+		let elements = []
+		for(let i = index; i <= index + this.config.maximumEntries; i++) {
+			if(this.events[i]) {
+				elements.push(this.events[i])
+			}
+			
+		}
 		var header = document.querySelector("#event_list_header");
 		header.innerHTML = "";
 
 		
-		var title = document.createElement("h1");
-		title.innerHTML = moment().format("dddd") + " - " + moment().add(days_until, "days")
+		var title = document.createElement("h3");
+		title.innerHTML = "Veranstaltungen " + index + " - " + (this.config.maximumEntries + index)
 		header.append(title)
 
 		var divider = document.createElement("hr")
 		header.append(divider)
 		
 		var event_body = document.querySelector("#event_list_body")
+		event_body.innerHTML = ""
 		event_body.classList.add("d-flex")
 		
-		for(const event of elements) {
+		for(const element of elements) {
 			var el_wrapper = document.createElement("div");
+			el_wrapper.classList.add("event_wrapper")
 
 			var img_div = document.createElement("div");
+			img_div.classList.add("event_photo_wrapper")
 			
 			var img = document.createElement("img");
+			img.classList.add("event_photo")
+
+			img.src = element.photo
+			img.width = "100";
 			
+
+			img_div.append(img)
+			el_wrapper.append(img_div)
+
+			var text_el_wrapper = document.createElement("div")
+			text_el_wrapper.classList.add("text_element_wrapper")
+			el_wrapper.append(text_el_wrapper)
+
+			var title = document.createElement("h3")
+			title.classList.add("bright")
+			title.innerHTML = element.name;
+			text_el_wrapper.append(title)
+
+			var date_list_wrapper = document.createElement("div")
+			date_list_wrapper.classList.add("date_list_wrapper")
+
+			for(const date of element.dates) {
+				var date_string = document.createElement("h4")
+				date_string.classList.add("date_string")
+				date_string.classList.add("bright")
+
+				date_string.innerHTML = moment(date.start).format("dddd, Do MMMM YYYY")
+					if (!date.allday) {
+						date_string.innerHTML += " " + moment(date.start).format("HH:mm")
+						if(date.end) {
+							date_string.innerHTML += " - " + moment(date.end).format("HH:mm")
+						}
+					}
+				date_list_wrapper.append(date_string);
+			}
+			text_el_wrapper.append(date_list_wrapper)
+			
+
+			var description = document.createElement("p");
+			description.classList.add("description");
+			description.innerHTML = element.description.substring(0, 200);
+
+			
+			text_el_wrapper.append(description);
+
+			event_body.append(el_wrapper)
+
 		}
 
 	},
@@ -169,13 +243,15 @@ Module.register("MMM-Oveda", {
 	
 		//Add a new div to be able to display the update time alone after all the task
 		var event_container = document.createElement("div");
+		event_container.width = this.config.width;
+		event_container.style.width = this.config.width;
 		event_container.id = "event_container";
 
 		//display "loading..." if not loaded
 		if (!this.loaded) {
 			event_container.innerHTML = "Loading...";
 			event_container.className = "dimmed light small";
-			return wrapper;
+			return event_container;
 		}
 
 
@@ -188,9 +264,8 @@ Module.register("MMM-Oveda", {
 		event_list_body.id = "event_list_body";
 		event_container.append(event_list_body);
 
-		var p
-		
+
 		return event_container;
-	}
+	},
 
 });
