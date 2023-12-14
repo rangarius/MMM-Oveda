@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "moment": "^2.29.4",
+    "request": "^2.88.2",
+    "rrule": "^2.7.2"
+  }
+}
